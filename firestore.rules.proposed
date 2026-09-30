@@ -1,0 +1,200 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticatedTeacher() {
+      // Asumsi transisi: semua akun Firebase Auth adalah guru.
+      // Target produksi yang lebih kuat: tambahkan custom claim teacher == true.
+      return request.auth != null;
+    }
+
+    function validStageId(value) {
+      return value in ['stage1', 'stage2', 'stage3', 'stage4', 'stage5', 'stage6'];
+    }
+
+    function validGameType(value) {
+      return value in [
+        'dengarSuaraHuruf',
+        'tebakGambarObjek',
+        'susunKata',
+        'hurufYangHilang',
+        'hurufAwalApa',
+        'cocokkanHuruf',
+        'urutkanHuruf'
+      ];
+    }
+
+    function validStandardGameType(value) {
+      return value in [
+        'dengarSuaraHuruf',
+        'tebakGambarObjek',
+        'susunKata',
+        'hurufYangHilang',
+        'hurufAwalApa',
+        'cocokkanHuruf'
+      ];
+    }
+
+    function validAlphabetLetter(value) {
+      return value is string && value.matches('^[A-Z]$');
+    }
+
+    function validCatalogMaterial(huruf, kata) {
+      return (huruf == 'a' && kata == 'ayam')
+        || (huruf == 'b' && kata == 'bebek')
+        || (huruf == 'c' && kata == 'cicak')
+        || (huruf == 'd' && kata == 'domba')
+        || (huruf == 'e' && kata == 'elang')
+        || (huruf == 'f' && kata == 'feri')
+        || (huruf == 'g' && kata == 'gajah')
+        || (huruf == 'h' && kata == 'harimau')
+        || (huruf == 'i' && kata == 'ikan')
+        || (huruf == 'j' && kata == 'jerapah')
+        || (huruf == 'k' && kata == 'kucing')
+        || (huruf == 'l' && kata == 'lebah')
+        || (huruf == 'm' && kata == 'monyet')
+        || (huruf == 'n' && kata == 'nanas')
+        || (huruf == 'o' && kata == 'onta')
+        || (huruf == 'p' && kata == 'panda')
+        || (huruf == 'q' && kata == 'quran')
+        || (huruf == 'r' && kata == 'rusa')
+        || (huruf == 's' && kata == 'singa')
+        || (huruf == 't' && kata == 'tikus')
+        || (huruf == 'u' && kata == 'ulat')
+        || (huruf == 'v' && kata == 'vas')
+        || (huruf == 'w' && kata == 'wortel')
+        || (huruf == 'x' && kata == 'xilofon')
+        || (huruf == 'y' && kata == 'yoyo')
+        || (huruf == 'z' && kata == 'zebra');
+    }
+
+    function validStandardQuestionFields(data) {
+      return data.keys().hasOnly([
+          'stageId', 'gameType', 'kata', 'huruf', 'isActive',
+          'createdAt', 'updatedAt', 'createdBy'
+        ])
+        && validStageId(data.stageId)
+        && validStandardGameType(data.gameType)
+        && data.kata is string && data.kata.size() > 0
+        && data.huruf is string && data.huruf.size() == 1
+        && validCatalogMaterial(data.huruf, data.kata)
+        && data.isActive is bool
+        && data.createdBy is string;
+    }
+
+    function validLetterSequenceConfig(config) {
+      // Firestore Rules tidak menyediakan operasi ordinal alfabet yang layak
+      // untuk menghitung ukuran F-Q. Urutan dan kapasitas range divalidasi web
+      // serta Android; rules tetap membatasi A-Z dan letterCount 3-7.
+      return config is map
+        && config.keys().hasOnly(['startLetter', 'endLetter', 'letterCount'])
+        && validAlphabetLetter(config.startLetter)
+        && validAlphabetLetter(config.endLetter)
+        && config.letterCount is int
+        && config.letterCount >= 3
+        && config.letterCount <= 7;
+    }
+
+    function validLetterSequenceQuestionFields(data) {
+      return data.keys().hasOnly([
+          'stageId', 'gameType', 'config', 'isActive',
+          'createdAt', 'updatedAt', 'createdBy'
+        ])
+        && validStageId(data.stageId)
+        && data.gameType == 'urutkanHuruf'
+        && validLetterSequenceConfig(data.config)
+        && data.isActive is bool
+        && data.createdBy is string;
+    }
+
+    function validQuestionFields(data) {
+      return validStandardQuestionFields(data)
+        || validLetterSequenceQuestionFields(data);
+    }
+
+    function validLegacyLetterSequenceFields(data) {
+      return data.keys().hasOnly([
+          'stageId', 'gameType', 'kata', 'huruf', 'isActive',
+          'createdAt', 'updatedAt', 'createdBy'
+        ])
+        && validStageId(data.stageId)
+        && data.gameType == 'urutkanHuruf'
+        && data.kata is string && data.kata.size() > 0
+        && data.huruf is string && data.huruf.size() == 1
+        && validCatalogMaterial(data.huruf, data.kata)
+        && data.isActive is bool
+        && data.createdBy is string;
+    }
+
+    function validStageProgress(data) {
+      return data.keys().hasOnly(['skor', 'status', 'updatedAt'])
+        && data.skor is int && data.skor >= 0 && data.skor <= 100
+        && data.status in ['locked', 'unlocked', 'completed'];
+    }
+
+    function validProgress(progress) {
+      return progress.keys().hasOnly(['stage1', 'stage2', 'stage3', 'stage4', 'stage5', 'stage6'])
+        && (!('stage1' in progress) || validStageProgress(progress.stage1))
+        && (!('stage2' in progress) || validStageProgress(progress.stage2))
+        && (!('stage3' in progress) || validStageProgress(progress.stage3))
+        && (!('stage4' in progress) || validStageProgress(progress.stage4))
+        && (!('stage5' in progress) || validStageProgress(progress.stage5))
+        && (!('stage6' in progress) || validStageProgress(progress.stage6));
+    }
+
+    function validStudent(data) {
+      return data.keys().hasOnly([
+          'namaLengkap', 'username', 'pin', 'usia',
+          'jenisKelamin', 'createdAt', 'progress'
+        ])
+        && data.namaLengkap is string && data.namaLengkap.size() > 0
+        && data.username is string && data.username.size() > 0
+        && data.pin is string && data.pin.matches('[0-9]{3}')
+        && data.usia is int
+        && data.jenisKelamin is string
+        && data.progress is map
+        && validProgress(data.progress);
+    }
+
+    function onlyProgressChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['progress']);
+    }
+
+    match /soal/{questionId} {
+      // Android selalu query isActive == true; guru terautentikasi dapat membaca semuanya.
+      allow read: if isAuthenticatedTeacher() || resource.data.isActive == true;
+      allow create: if isAuthenticatedTeacher()
+        && validQuestionFields(request.resource.data)
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow update: if isAuthenticatedTeacher()
+        && (validQuestionFields(request.resource.data)
+          || (validLegacyLetterSequenceFields(resource.data)
+            && validLegacyLetterSequenceFields(request.resource.data)
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['isActive', 'updatedAt'])))
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if isAuthenticatedTeacher();
+    }
+
+    match /siswa/{studentId} {
+      // KOMPATIBILITAS SAAT INI: login siswa Android melakukan query tanpa Firebase Auth.
+      // Public read mengandung risiko privasi dan harus dievaluasi sebelum rules produksi diganti.
+      allow read: if true;
+      allow create: if isAuthenticatedTeacher()
+        && validStudent(request.resource.data)
+        && request.resource.data.createdAt == request.time;
+      // TRANSISI: Android siswa saat ini menulis progress tanpa Firebase Auth.
+      // Cabang unauthenticated hanya boleh mengubah field progress, tetapi belum dapat
+      // membuktikan bahwa pemanggil adalah pemilik dokumen siswa tersebut.
+      allow update: if validStudent(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && (isAuthenticatedTeacher()
+          || (request.auth == null && onlyProgressChanged()));
+      allow delete: if isAuthenticatedTeacher();
+    }
+  }
+}
