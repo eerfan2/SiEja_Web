@@ -6,18 +6,44 @@ export function PolicyPage({ type }: { type: "privacy" | "terms" }) {
   return (
     <PublicShell>
       <main>
-        <ContentHero eyebrow={privacy ? "Kebijakan Privasi" : "Syarat Penggunaan"} title={privacy ? "Informasi privasi SiEja" : "Ketentuan penggunaan SiEja"} description="Dokumen ringkas untuk menjelaskan prinsip penggunaan website. Isi final perlu ditinjau sebelum peluncuran publik resmi." />
-        <article className="page-container py-12 sm:py-16"><div className="mx-auto max-w-3xl space-y-8 rounded-[1.75rem] border bg-white p-6 sm:p-10">
-          {privacy ? <>
-            <PolicySection title="Data yang digunakan">Dashboard menampilkan data siswa dan progress dari Firebase project SiEja yang sama. Website tidak menambahkan data riset, statistik pengguna, atau layanan pelacak eksternal.</PolicySection>
-            <PolicySection title="Akses guru">Akses dashboard menggunakan Firebase Authentication. Hak akses Firestore tetap harus ditegakkan melalui Security Rules yang sesuai.</PolicySection>
-            <PolicySection title="Form kontak">Form kontak saat ini hanya memiliki validasi antarmuka dan belum mengirim atau menyimpan pesan.</PolicySection>
-          </> : <>
-            <PolicySection title="Penggunaan aplikasi">SiEja digunakan sebagai media pembelajaran pendamping, bukan pengganti pembelajaran bersama guru.</PolicySection>
-            <PolicySection title="Akun dan akses">Kredensial guru dan PIN siswa tidak boleh dibagikan kepada pihak yang tidak berkepentingan.</PolicySection>
-            <PolicySection title="Konten soal">Guru bertanggung jawab memastikan materi yang diaktifkan sesuai kebutuhan pembelajaran dan range stage.</PolicySection>
-          </>}
-        </div></article>
+        <ContentHero
+          eyebrow={privacy ? "Kebijakan Privasi" : "Syarat Penggunaan"}
+          title={privacy ? "Informasi privasi SiEja" : "Ketentuan penggunaan SiEja"}
+          description={
+            privacy
+              ? "Informasi mengenai penggunaan data dan privasi pada website SiEja. Informasi yang digunakan dapat berbeda sesuai dengan fitur yang diakses oleh pengguna."
+              : "Dokumen ringkas untuk menjelaskan prinsip dan ketentuan penggunaan layanan website SiEja."
+          }
+        />
+        <article className="page-container py-12 sm:py-16">
+          <div className="mx-auto max-w-3xl space-y-8 rounded-[1.75rem] border bg-white p-6 sm:p-10">
+            {privacy ? (
+              <>
+                <PolicySection title="Data yang digunakan">
+                  Pengunjung yang hanya melihat informasi pada website tidak perlu memberikan data pribadi. Pada fitur tertentu, SiEja dapat menggunakan data yang diperlukan untuk menjalankan fungsi tersebut, seperti data siswa dan progress pada dashboard guru.
+                </PolicySection>
+                <PolicySection title="Akses guru">
+                  Fitur dashboard guru menggunakan Firebase Authentication untuk proses autentikasi. Data yang ditampilkan dan dikelola melalui dashboard mengikuti hak akses dan aturan keamanan yang diterapkan pada sistem.
+                </PolicySection>
+                <PolicySection title="Form kontak">
+                  Form kontak tidak menyimpan pesan pada website. Setelah pengguna mengisi form dan menekan tombol “Kirim Pesan”, data digunakan untuk membuat draft pesan pada layanan email pengguna. Pengiriman pesan dilakukan oleh pengguna melalui layanan email tersebut.
+                </PolicySection>
+              </>
+            ) : (
+              <>
+                <PolicySection title="Penggunaan aplikasi">
+                  SiEja digunakan sebagai media pembelajaran pendamping, bukan pengganti pembelajaran bersama guru.
+                </PolicySection>
+                <PolicySection title="Akun dan akses">
+                  Kredensial guru dan PIN siswa tidak boleh dibagikan kepada pihak yang tidak berkepentingan.
+                </PolicySection>
+                <PolicySection title="Konten soal">
+                  Guru bertanggung jawab memastikan materi yang diaktifkan sesuai dengan kebutuhan pembelajaran dan tahapan yang tersedia.
+                </PolicySection>
+              </>
+            )}
+          </div>
+        </article>
       </main>
     </PublicShell>
   );

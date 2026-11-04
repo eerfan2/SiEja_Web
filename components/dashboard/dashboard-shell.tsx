@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3,
   BookOpenCheck,
+  FolderArchive,
   Gauge,
   KeyRound,
   LogOut,
@@ -37,7 +38,8 @@ const MENU = [
   ["Data Siswa", "/dashboard/siswa", Users],
   ["Progress", "/dashboard/progress", BarChart3],
   ["Remedial", "/dashboard/remedial", RefreshCcw],
-  ["Buka Level", "/dashboard/stage", KeyRound],
+  ["Kelola Stage", "/dashboard/stage", KeyRound],
+  ["Katalog Materi", "/dashboard/katalog", FolderArchive],
   ["Kelola Soal", "/dashboard/soal", BookOpenCheck],
   ["Pengaturan", "/dashboard/settings", Settings],
 ] as const;
@@ -87,7 +89,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background/95 px-4 backdrop-blur-md md:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <SidebarTrigger className="size-10 transition-transform duration-150 active:scale-95 md:hidden" aria-label="Buka menu dashboard" />
-            <div className="min-w-0"><p className="truncate text-sm font-bold">Dashboard Guru SiEja</p><p className="hidden text-xs text-muted-foreground sm:block">Firebase project: sieja-app</p></div>
+            <div className="min-w-0"><p className="truncate text-sm font-bold">Dashboard Guru SiEja</p></div>
           </div>
           <Button variant="outline" size="sm" asChild className="rounded-xl"><Link href="/">Website Publik</Link></Button>
         </header>

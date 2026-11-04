@@ -1,4 +1,4 @@
-import type { GameType, MaterialItem, StageId } from "@/types/sieja";
+import { GAME_TYPES, type GameType, type MaterialItem, type StageId } from "@/types/sieja";
 
 const WORDS = [
   ["a", "Ayam"], ["b", "Bebek"], ["c", "Cicak"], ["d", "Domba"],
@@ -76,7 +76,7 @@ export function getRecommendedMaterialsForStage(stageId: StageId): MaterialItem[
 }
 
 export function getRecommendedGameTypesForStage(stageId: StageId): readonly GameType[] {
-  return STAGE_GAME_TYPES[stageId];
+  return STAGE_GAME_TYPES[stageId] ?? GAME_TYPES;
 }
 
 export function getMaterial(huruf: string): MaterialItem | undefined {

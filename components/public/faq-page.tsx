@@ -11,6 +11,8 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 const FAQS = [
   ["Umum", "Apa itu SiEja?", "SiEja adalah game edukasi Android yang digunakan sebagai media pembelajaran pendamping untuk latihan mengenal huruf dan mengeja."],
   ["Umum", "Siapa yang menggunakan SiEja?", "Anak TK menggunakan aplikasi Android, sedangkan guru menggunakan fitur guru di Android dan dashboard web."],
+  ["Perangkat", "Apakah SiEja dapat digunakan di smartphone dan tablet?", "Ya. SiEja tersedia untuk perangkat Android, baik smartphone maupun tablet, dengan orientasi penggunaan portrait."],
+  ["Perangkat", "Apakah SiEja tersedia untuk iPhone atau iPad?", "Saat ini SiEja ditujukan untuk perangkat Android. Versi untuk iPhone atau iPad belum tersedia."],
   ["Siswa", "Bagaimana siswa login?", "Siswa login memakai username dan PIN 3 digit yang diberikan guru."],
   ["Permainan", "Bagaimana stage berikutnya terbuka?", "Stage 2–6 dapat dimainkan apabila sudah dibuka guru dan stage sebelumnya berstatus completed."],
   ["Permainan", "Apakah skor digunakan untuk unlock?", "Tidak. Skor dan bintang hanya menjadi feedback hasil pengerjaan, bukan syarat unlock."],

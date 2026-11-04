@@ -1,6 +1,7 @@
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -24,17 +25,26 @@ export class FirebaseConfigurationError extends Error {
   }
 }
 
-let cached: { app: FirebaseApp; auth: Auth; db: Firestore } | null = null;
+let cached: { app: FirebaseApp; auth: Auth; db: Firestore; storage: FirebaseStorage } | null = null;
 
 export function getFirebaseClient(): {
   app: FirebaseApp;
   auth: Auth;
   db: Firestore;
+  storage: FirebaseStorage;
 } {
   if (!isFirebaseConfigured) throw new FirebaseConfigurationError();
   if (cached) return cached;
 
   const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-  cached = { app, auth: getAuth(app), db: getFirestore(app) };
+  const storage = getStorage(app);
+  storage.maxUploadRetryTime = 20000;
+  storage.maxOperationRetryTime = 20000;
+  cached = {
+    app,
+    auth: getAuth(app),
+    db: getFirestore(app),
+    storage,
+  };
   return cached;
 }

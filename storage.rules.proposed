@@ -1,0 +1,18 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAuthenticatedTeacher() {
+      // Guru terautentikasi melalui Firebase Auth
+      return request.auth != null;
+    }
+
+    match /material_catalog/{materialId}/{fileName} {
+      // Siswa dan publik dapat membaca/mengunduh aset media materi untuk keperluan game
+      allow read: if true;
+
+      // Hanya guru terautentikasi yang boleh mengunggah dan menghapus media katalog
+      allow write, delete: if isAuthenticatedTeacher();
+    }
+  }
+}

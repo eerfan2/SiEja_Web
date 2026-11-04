@@ -4,6 +4,7 @@ import {
   countActiveQuestionsPerStage,
   countStageStatuses,
   getBankSoalStatus,
+  getDominantAgeInfo,
   getStageAudienceState,
   getStudentAvatarKind,
   studentMatchesProgressFilter,
@@ -153,4 +154,28 @@ test("countActiveQuestionsPerStage: count dipisahkan berdasarkan stageId", () =>
   assert.equal(counts.stage4, 0);
   assert.equal(counts.stage5, 0);
   assert.equal(counts.stage6, 0);
+});
+
+test("getDominantAgeInfo: menampilkan usia tunggal paling banyak", () => {
+  const students = [{ usia: 5 }, { usia: 5 }, { usia: 6 }, { usia: 4 }];
+  const { dominantAgeLabel, dominantAges } = getDominantAgeInfo(students);
+  assert.equal(dominantAgeLabel, "5 tahun");
+  assert.deepEqual(dominantAges, [5]);
+});
+
+test("getDominantAgeInfo: menampilkan rentang jika ada usia yang sama tinggi (contoh: 5-6 tahun)", () => {
+  // Contoh user: 5 tahun ada 10 orang dan 6 tahun ada 10 orang -> 5-6 tahun
+  const students = [
+    ...Array(10).fill({ usia: 5 }),
+    ...Array(10).fill({ usia: 6 }),
+    ...Array(3).fill({ usia: 4 }),
+  ];
+  const { dominantAgeLabel, dominantAges } = getDominantAgeInfo(students);
+  assert.equal(dominantAgeLabel, "5-6 tahun");
+  assert.deepEqual(dominantAges, [5, 6]);
+});
+
+test("getDominantAgeInfo: menangani data kosong atau usia invalid", () => {
+  assert.deepEqual(getDominantAgeInfo([]), { dominantAgeLabel: "-", dominantAges: [] });
+  assert.deepEqual(getDominantAgeInfo([{ usia: 0 }, { usia: undefined }]), { dominantAgeLabel: "-", dominantAges: [] });
 });

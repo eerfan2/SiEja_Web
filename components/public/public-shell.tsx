@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Camera, Menu, Music2, Users } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,6 +43,9 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
           <div className="flex items-center gap-2">
+            <Button asChild variant="outline" className="hidden h-11 rounded-xl px-4 border-indigo-200 text-indigo-900 bg-indigo-50/60 hover:bg-indigo-100 md:inline-flex">
+              <Link href="/daftar-uji-coba">Daftar Uji Coba</Link>
+            </Button>
             <Button asChild className="hidden h-11 rounded-xl px-5 sm:inline-flex">
               <Link href="/login-guru">Login Guru</Link>
             </Button>
@@ -70,7 +73,12 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
                     </SheetClose>
                   ))}
                   <SheetClose asChild>
-                    <Button asChild className="mt-3 h-12 rounded-xl">
+                    <Button asChild variant="outline" className="mt-3 h-12 rounded-xl border-indigo-200 text-indigo-900 bg-indigo-50/60">
+                      <Link href="/daftar-uji-coba">Daftar Akun Uji Coba</Link>
+                    </Button>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Button asChild className="mt-2 h-12 rounded-xl">
                       <Link href="/login-guru">Login Guru</Link>
                     </Button>
                   </SheetClose>
@@ -94,23 +102,24 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
             </p>
             <div className="mt-5 flex gap-2">
               {[
-                [Camera, "Instagram"],
-                [Users, "Facebook"],
-                [Music2, "TikTok"],
-              ].map(([Icon, label]) => (
+                { iconSrc: "/instagram.png", label: "Instagram", href: "https://www.instagram.com/eerfan_2/" },
+                { iconSrc: "/tik-tok.png", label: "TikTok", href: "https://www.tiktok.com/@azubair_2" },
+              ].map(({ iconSrc, label, href }) => (
                 <a
-                  key={label as string}
-                  href="#"
-                  aria-label={`${label} SiEja — tautan belum tersedia`}
-                  title="Tautan belum tersedia"
-                  className="grid size-10 place-items-center rounded-xl border bg-white text-muted-foreground transition-all duration-200 ease-out hover:border-primary hover:text-primary hover:-translate-y-0.5 hover:shadow-sm active:scale-95"
+                  key={label}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${label} Pengembang`}
+                  title={label}
+                  className="grid size-10 place-items-center rounded-xl border bg-white transition-all duration-200 ease-out hover:border-primary hover:-translate-y-0.5 hover:shadow-sm active:scale-95"
                 >
-                  <Icon className="size-4" />
+                  <img src={iconSrc} alt={label} className="size-5 object-contain" />
                 </a>
               ))}
             </div>
           </div>
-          <FooterGroup title="Navigasi" links={[["Home", "/"], ["Fitur", "/#fitur"], ["Download", "/download"], ["Tutorial", "/tutorial"], ["FAQ", "/faq"], ["Tentang", "/tentang"]]} />
+          <FooterGroup title="Navigasi" links={[["Home", "/"], ["Fitur", "/#fitur"], ["Download", "/download"], ["Daftar Uji Coba", "/daftar-uji-coba"], ["Tutorial", "/tutorial"], ["FAQ", "/faq"], ["Tentang", "/tentang"]]} />
           <FooterGroup title="Bantuan" links={[["FAQ", "/faq"], ["Tutorial", "/tutorial"], ["Kontak", "/kontak"], ["Kebijakan Privasi", "/kebijakan-privasi"], ["Syarat Penggunaan", "/syarat-penggunaan"]]} />
           <div>
             <h2 className="text-sm font-bold text-foreground">Pengembang</h2>

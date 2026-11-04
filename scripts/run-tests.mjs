@@ -11,7 +11,7 @@ for (const [command, args] of suites) {
   const result = spawnSync(command, args, {
     cwd: process.cwd(),
     env: process.env,
-    shell: process.platform === "win32",
+    shell: false,
     stdio: "inherit",
   });
 

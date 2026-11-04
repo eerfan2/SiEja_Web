@@ -11,13 +11,17 @@ export function StudentAvatar({
   jenisKelamin,
   name,
   size = "md",
+  animate = true,
 }: {
   jenisKelamin: string;
   name: string;
   size?: keyof typeof SIZE_CLASSES;
+  animate?: boolean;
 }) {
   const avatar = getStudentAvatarKind(jenisKelamin);
-  const className = `grid ${SIZE_CLASSES[size]} shrink-0 place-items-center overflow-hidden rounded-2xl bg-[#eeeafd]`;
+  const className = `grid ${SIZE_CLASSES[size]} shrink-0 place-items-center overflow-hidden rounded-2xl bg-[#eeeafd] ${
+    animate ? "animate-breathe shadow-sm" : ""
+  } transition-all duration-300 hover:scale-110`;
 
   if (avatar === "neutral") {
     return (
@@ -37,7 +41,7 @@ export function StudentAvatar({
       <img
         src={`/avatars/${avatar}.png`}
         alt={`Avatar ${characterName} untuk ${name}`}
-        className="h-full w-full object-contain p-1"
+        className="h-full w-full object-contain p-1 transition-transform duration-300 hover:rotate-3"
       />
     </div>
   );

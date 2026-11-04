@@ -50,7 +50,9 @@ import {
   LETTER_COUNT_OPTIONS,
   validateLetterSequenceConfig,
 } from "@/lib/domain/letter-sequence";
+import { getCatalogItems } from "@/services/catalog-service";
 import { createQuestion, getQuestion, updateQuestion } from "@/services/question-service";
+import { getStages } from "@/services/stage-service";
 import {
   ALPHABET,
   GAME_TYPES,
@@ -59,8 +61,11 @@ import {
   type AlphabetLetter,
   type GameType,
   type LetterSequenceConfig,
+  type MaterialCatalogItem,
+  type MaterialItem,
   type QuestionInput,
   type StageId,
+  type StageItem,
   type StandardGameType,
 } from "@/types/sieja";
 
@@ -82,6 +87,29 @@ export function QuestionFormPage({ mode }: { mode: "create" | "edit" }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [previewNonce, setPreviewNonce] = useState(0);
+
+  // Ambil katalog materi dinamis dari Firestore & daftar stage
+  const [dynamicCatalogItems, setDynamicCatalogItems] = useState<MaterialCatalogItem[]>([]);
+  const [availableStages, setAvailableStages] = useState<StageItem[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    getCatalogItems()
+      .then((items) => {
+        if (active) setDynamicCatalogItems(items);
+      })
+      .catch((err) => console.warn("Gagal memuat katalog dinamis:", err));
+
+    getStages()
+      .then((stages) => {
+        if (active) setAvailableStages(stages);
+      })
+      .catch((err) => console.warn("Gagal memuat stage dinamis:", err));
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (mode !== "edit") return;
@@ -125,16 +153,78 @@ export function QuestionFormPage({ mode }: { mode: "create" | "edit" }) {
     };
   }, [mode, params.id]);
 
+  // Gabungkan materi default A-Z dengan katalog materi dinamis
+  const allMaterials = useMemo<MaterialItem[]>(() => {
+    const list: MaterialItem[] = [...MATERIAL_CATALOG];
+    for (const dyn of dynamicCatalogItems) {
+      if (dyn.isActive === false) continue;
+      const normKata = dyn.word.toLowerCase().trim();
+      const mapped: MaterialItem = {
+        huruf: dyn.initialLetter.toLowerCase(),
+        kata: normKata,
+        imagePath: dyn.imageUrl || dyn.imagePath,
+        letterAudioPath: `/media/huruf-audio/${dyn.letterAudioId.toLowerCase()}.mp3`,
+        wordAudioPath: dyn.wordAudioUrl || dyn.wordAudioPath,
+      };
+      const existingIdx = list.findIndex((m) => m.kata.toLowerCase() === normKata);
+      if (existingIdx >= 0) {
+        list[existingIdx] = mapped;
+      } else {
+        list.push(mapped);
+      }
+    }
+    return list.sort((a, b) => a.kata.localeCompare(b.kata));
+  }, [dynamicCatalogItems]);
+
+  const dynamicWords = useMemo(
+    () =>
+      dynamicCatalogItems
+        .map((i) => (i.normalizedWord || i.word || "").toLowerCase().trim())
+        .filter(Boolean),
+    [dynamicCatalogItems],
+  );
+
+  const stageList = useMemo(() => {
+    if (availableStages.length > 0) {
+      return availableStages.map((s) => ({
+        id: s.id,
+        number: s.number,
+        range: s.range || "A–Z",
+        nama: s.nama || `Stage ${s.number}`,
+      }));
+    }
+    return STAGE_DEFINITIONS.map((s) => ({
+      id: s.id,
+      number: s.number,
+      range: s.range,
+      nama: `Stage ${s.number}`,
+    }));
+  }, [availableStages]);
+
   const isSequence = isLetterSequenceInput(form);
   const sequenceConfig = isSequence ? form.config : null;
-  const selected = !isSequence ? getMaterial(form.huruf) : undefined;
-  const selectedStage = STAGE_DEFINITIONS.find((stage) => stage.id === form.stageId);
+
+  const selected = useMemo(() => {
+    if (isSequence) return undefined;
+    const formKata = "kata" in form && typeof form.kata === "string" ? form.kata.toLowerCase() : "";
+    const formHuruf = "huruf" in form && typeof form.huruf === "string" ? form.huruf.toLowerCase() : "";
+    if (formKata) {
+      const matchKata = allMaterials.find((m) => m.kata.toLowerCase() === formKata);
+      if (matchKata) return matchKata;
+    }
+    if (formHuruf) {
+      return allMaterials.find((m) => m.huruf.toLowerCase() === formHuruf);
+    }
+    return undefined;
+  }, [isSequence, form, allMaterials]);
+
+  const selectedStage = stageList.find((stage) => stage.id === form.stageId);
   const recommendedMaterials = getRecommendedMaterialsForStage(form.stageId);
-  const recommendedGameTypes = getRecommendedGameTypesForStage(form.stageId);
+  const recommendedGameTypes = getRecommendedGameTypesForStage(form.stageId) ?? [];
   const selectedIsDefault = selected
-    ? recommendedMaterials.some((material) => material.huruf === selected.huruf)
+    ? recommendedMaterials.some((material) => material.huruf === selected.huruf && material.kata === selected.kata)
     : false;
-  const errors = validateQuestionInput(form);
+  const errors = validateQuestionInput(form, dynamicWords);
   const sequencePreview = useMemo(() => {
     void previewNonce;
     if (!sequenceConfig || validateLetterSequenceConfig(sequenceConfig).length) return null;
@@ -206,8 +296,8 @@ export function QuestionFormPage({ mode }: { mode: "create" | "edit" }) {
     }
     setSaving(true);
     try {
-      if (mode === "create") await createQuestion(form, user.uid);
-      else await updateQuestion(params.id, form);
+      if (mode === "create") await createQuestion(form, user.uid, dynamicWords);
+      else await updateQuestion(params.id, form, dynamicWords);
       toast.success(mode === "create" ? "Soal berhasil ditambahkan." : "Soal berhasil diperbarui.");
       router.push("/dashboard/soal");
     } catch (problem) {
@@ -271,9 +361,9 @@ export function QuestionFormPage({ mode }: { mode: "create" | "edit" }) {
                 <Select value={form.stageId} onValueChange={(value) => chooseStage(value as StageId)}>
                   <SelectTrigger className="h-12"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {STAGE_DEFINITIONS.map((stage) => (
+                    {stageList.map((stage) => (
                       <SelectItem key={stage.id} value={stage.id}>
-                        Stage {stage.number} — Default {stage.range}
+                        Stage {stage.number} — {stage.nama} ({stage.range})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -298,7 +388,7 @@ export function QuestionFormPage({ mode }: { mode: "create" | "edit" }) {
                     {GAME_TYPES.map((type) => (
                       <SelectItem key={type} value={type}>
                         {GAME_TYPE_LABELS[type]}
-                        {recommendedGameTypes.includes(type) ? " — Default" : ""}
+                        {recommendedGameTypes?.includes(type) ? " — Default" : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -332,29 +422,46 @@ export function QuestionFormPage({ mode }: { mode: "create" | "edit" }) {
             <div className="mt-7">
               <div className="flex items-end justify-between gap-4">
                 <div>
-                  <h2 className="font-bold">Katalog Materi A–Z</h2>
+                  <h2 className="font-bold">Katalog Materi Pembelajaran</h2>
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    Default Stage {selectedStage?.number}: {selectedStage?.range}. Seluruh materi tetap dapat dipilih.
+                    Pilih kata materi dari katalog bawaan maupun materi baru yang ditambahkan guru.
                   </p>
                 </div>
-                <span className="text-xs font-semibold text-primary">{MATERIAL_CATALOG.length} materi</span>
+                <span className="text-xs font-semibold text-primary">{allMaterials.length} materi</span>
               </div>
               <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                {MATERIAL_CATALOG.map((material) => {
-                  const active = form.huruf === material.huruf;
-                  const isDefault = recommendedMaterials.some((item) => item.huruf === material.huruf);
+                {allMaterials.map((material) => {
+                  const active =
+                    "kata" in form && form.kata
+                      ? form.kata.toLowerCase() === material.kata.toLowerCase()
+                      : form.huruf?.toLowerCase() === material.huruf.toLowerCase();
+                  const isDefault = recommendedMaterials.some(
+                    (item) => item.huruf === material.huruf && item.kata === material.kata,
+                  );
+                  const isCustom = dynamicWords?.includes(material.kata.toLowerCase()) ?? false;
                   return (
                     <button
-                      key={material.huruf}
+                      key={`${material.huruf}_${material.kata}`}
                       type="button"
                       aria-pressed={active}
                       onClick={() => setForm({ ...form, huruf: material.huruf, kata: material.kata })}
-                      className={`relative rounded-2xl border p-3 text-left transition ${active ? "border-primary bg-[#f3f1ff] ring-2 ring-primary/20" : "bg-white hover:border-[#cfc8fb]"}`}
+                      className={`relative rounded-2xl border p-3 text-left transition ${
+                        active
+                          ? "border-primary bg-[#f3f1ff] ring-2 ring-primary/20"
+                          : "bg-white hover:border-[#cfc8fb]"
+                      }`}
                     >
-                      <Badge variant={isDefault ? "secondary" : "outline"} className="absolute left-2 top-2 rounded-full text-[10px]">
-                        {isDefault ? "Default" : "Fleksibel"}
+                      <Badge
+                        variant={isCustom ? "default" : isDefault ? "secondary" : "outline"}
+                        className="absolute left-2 top-2 rounded-full text-[10px]"
+                      >
+                        {isCustom ? "Katalog Baru" : isDefault ? "Default" : "Fleksibel"}
                       </Badge>
-                      <img src={material.imagePath} alt={`Gambar ${material.kata}`} className="mx-auto aspect-square w-full max-w-24 object-contain pt-5" />
+                      <img
+                        src={material.imagePath}
+                        alt={`Gambar ${material.kata}`}
+                        className="mx-auto aspect-square w-full max-w-24 object-contain pt-5"
+                      />
                       <p className="mt-3 text-sm font-bold capitalize">{material.kata}</p>
                       <p className="mt-1 text-xs text-muted-foreground">Huruf {material.huruf.toUpperCase()}</p>
                       {active && (
@@ -447,7 +554,12 @@ function LetterRangeStep({
   onRangeChange: (field: "startLetter" | "endLetter", value: AlphabetLetter) => void;
   onLetterCountChange: (value: number) => void;
 }) {
-  const selectedStage = STAGE_DEFINITIONS.find((stage) => stage.id === stageId)!;
+  const selectedStage = STAGE_DEFINITIONS.find((stage) => stage.id === stageId) ?? {
+    id: stageId,
+    number: Number(stageId.replace("stage", "")) || 1,
+    range: "A–Z",
+    letters: [],
+  };
   const selectedRange = getLetterRange(config.startLetter, config.endLetter);
   const rangeSize = selectedRange.length;
   const rangeErrors = validateLetterSequenceConfig(config);

@@ -9,7 +9,8 @@ service cloud.firestore {
     }
 
     function validStageId(value) {
-      return value in ['stage1', 'stage2', 'stage3', 'stage4', 'stage5', 'stage6'];
+      return value in ['stage1', 'stage2', 'stage3', 'stage4', 'stage5', 'stage6']
+        || (value is string && value.matches('^stage[1-9][0-9]*$'));
     }
 
     function validGameType(value) {
@@ -39,35 +40,6 @@ service cloud.firestore {
       return value is string && value.matches('^[A-Z]$');
     }
 
-    function validCatalogMaterial(huruf, kata) {
-      return (huruf == 'a' && kata == 'ayam')
-        || (huruf == 'b' && kata == 'bebek')
-        || (huruf == 'c' && kata == 'cicak')
-        || (huruf == 'd' && kata == 'domba')
-        || (huruf == 'e' && kata == 'elang')
-        || (huruf == 'f' && kata == 'feri')
-        || (huruf == 'g' && kata == 'gajah')
-        || (huruf == 'h' && kata == 'harimau')
-        || (huruf == 'i' && kata == 'ikan')
-        || (huruf == 'j' && kata == 'jerapah')
-        || (huruf == 'k' && kata == 'kucing')
-        || (huruf == 'l' && kata == 'lebah')
-        || (huruf == 'm' && kata == 'monyet')
-        || (huruf == 'n' && kata == 'nanas')
-        || (huruf == 'o' && kata == 'onta')
-        || (huruf == 'p' && kata == 'panda')
-        || (huruf == 'q' && kata == 'quran')
-        || (huruf == 'r' && kata == 'rusa')
-        || (huruf == 's' && kata == 'singa')
-        || (huruf == 't' && kata == 'tikus')
-        || (huruf == 'u' && kata == 'ulat')
-        || (huruf == 'v' && kata == 'vas')
-        || (huruf == 'w' && kata == 'wortel')
-        || (huruf == 'x' && kata == 'xilofon')
-        || (huruf == 'y' && kata == 'yoyo')
-        || (huruf == 'z' && kata == 'zebra');
-    }
-
     function validStandardQuestionFields(data) {
       return data.keys().hasOnly([
           'stageId', 'gameType', 'kata', 'huruf', 'isActive',
@@ -77,7 +49,6 @@ service cloud.firestore {
         && validStandardGameType(data.gameType)
         && data.kata is string && data.kata.size() > 0
         && data.huruf is string && data.huruf.size() == 1
-        && validCatalogMaterial(data.huruf, data.kata)
         && data.isActive is bool
         && data.createdBy is string;
     }
@@ -121,7 +92,6 @@ service cloud.firestore {
         && data.gameType == 'urutkanHuruf'
         && data.kata is string && data.kata.size() > 0
         && data.huruf is string && data.huruf.size() == 1
-        && validCatalogMaterial(data.huruf, data.kata)
         && data.isActive is bool
         && data.createdBy is string;
     }
@@ -133,13 +103,7 @@ service cloud.firestore {
     }
 
     function validProgress(progress) {
-      return progress.keys().hasOnly(['stage1', 'stage2', 'stage3', 'stage4', 'stage5', 'stage6'])
-        && (!('stage1' in progress) || validStageProgress(progress.stage1))
-        && (!('stage2' in progress) || validStageProgress(progress.stage2))
-        && (!('stage3' in progress) || validStageProgress(progress.stage3))
-        && (!('stage4' in progress) || validStageProgress(progress.stage4))
-        && (!('stage5' in progress) || validStageProgress(progress.stage5))
-        && (!('stage6' in progress) || validStageProgress(progress.stage6));
+      return progress is map;
     }
 
     function validStudent(data) {
@@ -165,16 +129,40 @@ service cloud.firestore {
       allow read: if isAuthenticatedTeacher() || resource.data.isActive == true;
       allow create: if isAuthenticatedTeacher()
         && validQuestionFields(request.resource.data)
-        && request.resource.data.createdBy == request.auth.uid
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.updatedAt == request.time;
+        && request.resource.data.createdBy == request.auth.uid;
       allow update: if isAuthenticatedTeacher()
         && (validQuestionFields(request.resource.data)
           || (validLegacyLetterSequenceFields(resource.data)
             && validLegacyLetterSequenceFields(request.resource.data)
             && request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['isActive', 'updatedAt'])))
-        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.createdBy == resource.data.createdBy;
+      allow delete: if isAuthenticatedTeacher();
+    }
+
+    function validMaterialCatalogItem(data) {
+      return data.keys().hasOnly([
+          'word', 'normalizedWord', 'initialLetter', 'letterAudioId',
+          'imagePath', 'wordAudioPath', 'isActive', 'createdAt', 'updatedAt', 'createdBy'
+        ])
+        && data.word is string && data.word.size() > 0
+        && data.normalizedWord is string && data.normalizedWord.size() > 0
+        && data.initialLetter is string && data.initialLetter.matches('^[A-Z]$')
+        && data.letterAudioId is string && data.letterAudioId.matches('^[A-Z]$')
+        && data.imagePath is string && data.imagePath.size() > 0
+        && data.wordAudioPath is string && data.wordAudioPath.size() > 0
+        && data.isActive is bool;
+    }
+
+    match /material_catalog/{materialId} {
+      // Siswa dan guru dapat membaca materi aktif; guru terautentikasi dapat membaca semua
+      allow read: if isAuthenticatedTeacher() || resource.data.isActive == true;
+      allow create: if isAuthenticatedTeacher()
+        && validMaterialCatalogItem(request.resource.data)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow update: if isAuthenticatedTeacher()
+        && validMaterialCatalogItem(request.resource.data)
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.updatedAt == request.time;
       allow delete: if isAuthenticatedTeacher();
@@ -184,7 +172,8 @@ service cloud.firestore {
       // KOMPATIBILITAS SAAT INI: login siswa Android melakukan query tanpa Firebase Auth.
       // Public read mengandung risiko privasi dan harus dievaluasi sebelum rules produksi diganti.
       allow read: if true;
-      allow create: if isAuthenticatedTeacher()
+      // Izinkan create oleh Guru terautentikasi ATAU pendaftaran mandiri (uji coba)
+      allow create: if (isAuthenticatedTeacher() || request.auth == null)
         && validStudent(request.resource.data)
         && request.resource.data.createdAt == request.time;
       // TRANSISI: Android siswa saat ini menulis progress tanpa Firebase Auth.
@@ -196,5 +185,24 @@ service cloud.firestore {
           || (request.auth == null && onlyProgressChanged()));
       allow delete: if isAuthenticatedTeacher();
     }
+
+    match /stages/{stageId} {
+      // Siswa Android dan Guru Web dapat membaca daftar stage
+      allow read: if true;
+      // Hanya guru terautentikasi yang dapat menambah, mengubah, atau menghapus stage
+      allow create, update, delete: if isAuthenticatedTeacher();
+    }
+
+    match /login_siswa/{credentialKey} {
+      // Siswa Android melakukan get dokumen berdasarkan hash username + PIN untuk verifikasi login
+      allow get: if true;
+      // Mencegah query / list seluruh akun siswa oleh pihak luar
+      allow list: if isAuthenticatedTeacher();
+      // Izinkan create kredensial oleh Guru ATAU pendaftaran mandiri (uji coba)
+      allow create: if isAuthenticatedTeacher() || request.auth == null;
+      allow update, delete: if isAuthenticatedTeacher();
+    }
   }
 }
+
+

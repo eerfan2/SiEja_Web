@@ -5,14 +5,15 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   serverTimestamp,
   updateDoc,
   type DocumentData,
   type Unsubscribe,
 } from "firebase/firestore";
-import { validateQuestionInput } from "@/lib/domain/business-rules";
-import { parseLetterSequenceConfig } from "@/lib/domain/letter-sequence";
+import { isGameType, isStageId, validateQuestionInput } from "@/lib/domain/business-rules";
+import { parseLetterSequenceConfig, validateLetterSequenceConfig } from "@/lib/domain/letter-sequence";
 import { getFirebaseClient } from "@/lib/firebase/client";
 import {
   isLetterSequenceInput,
@@ -87,6 +88,28 @@ export function buildUpdateQuestionData(
   };
 }
 
+async function resolveDynamicWords(
+  input: QuestionInput,
+  providedWords?: string[],
+): Promise<string[] | undefined> {
+  if (providedWords && providedWords.length > 0) {
+    return providedWords;
+  }
+  if (isLetterSequenceInput(input)) {
+    return undefined;
+  }
+  try {
+    const { db } = getFirebaseClient();
+    const snap = await getDocs(collection(db, "material_catalog"));
+    return snap.docs
+      .map((d) => (d.data().normalizedWord || d.data().word || "").toString().toLowerCase().trim())
+      .filter(Boolean);
+  } catch (err) {
+    console.warn("[QuestionService] Gagal mengambil katalog dinamis:", err);
+    return undefined;
+  }
+}
+
 export function parseQuestionDocument(id: string, data: DocumentData): Question | null {
   const metadata = {
     id,
@@ -97,16 +120,14 @@ export function parseQuestionDocument(id: string, data: DocumentData): Question 
     createdBy: typeof data.createdBy === "string" ? data.createdBy : "",
   };
 
+  if (typeof data.isActive !== "boolean") return null;
+  if (!isStageId(data.stageId)) return null;
+  if (!isGameType(data.gameType)) return null;
+
   if (data.gameType === "urutkanHuruf") {
     const config = parseLetterSequenceConfig(data.config);
     if (config) {
-      const input: QuestionInput = {
-        stageId: data.stageId,
-        gameType: "urutkanHuruf",
-        config,
-        isActive: data.isActive,
-      };
-      if (validateQuestionInput(input).length) return null;
+      if (validateLetterSequenceConfig(config).length > 0) return null;
       return { ...metadata, gameType: "urutkanHuruf", config };
     }
 
@@ -114,26 +135,22 @@ export function parseQuestionDocument(id: string, data: DocumentData): Question 
     // terjadi ketika guru membuka Edit dan menyimpan config baru.
     const kata = typeof data.kata === "string" ? data.kata.trim().toLowerCase() : "";
     const huruf = typeof data.huruf === "string" ? data.huruf.trim().toLowerCase() : "";
-    const legacyProbe = {
-      stageId: data.stageId,
-      gameType: "susunKata" as const,
-      kata,
-      huruf,
-      isActive: data.isActive,
-    };
-    if (validateQuestionInput(legacyProbe).length) return null;
+    if (!kata || !huruf || !/^[a-z]$/i.test(huruf)) return null;
     return { ...metadata, gameType: "urutkanHuruf", kata, huruf };
   }
 
-  const input: QuestionInput = {
+  const kata = typeof data.kata === "string" ? data.kata.trim().toLowerCase() : "";
+  const huruf = typeof data.huruf === "string" ? data.huruf.trim().toLowerCase() : "";
+  if (!kata || !huruf || !/^[a-z]$/i.test(huruf)) return null;
+
+  return {
+    ...metadata,
     stageId: data.stageId,
     gameType: data.gameType as StandardGameType,
-    kata: typeof data.kata === "string" ? data.kata : "",
-    huruf: typeof data.huruf === "string" ? data.huruf : "",
+    kata,
+    huruf,
     isActive: data.isActive,
   };
-  if (validateQuestionInput(input).length) return null;
-  return { ...metadata, ...input };
 }
 
 export function subscribeQuestions(
@@ -173,16 +190,26 @@ export async function getQuestion(questionId: string): Promise<Question> {
   return parsed;
 }
 
-export async function createQuestion(input: QuestionInput, userId: string) {
-  const errors = validateQuestionInput(input);
+export async function createQuestion(
+  input: QuestionInput,
+  userId: string,
+  dynamicCatalogWords?: string[],
+) {
+  const dynamicWords = await resolveDynamicWords(input, dynamicCatalogWords);
+  const errors = validateQuestionInput(input, dynamicWords);
   if (errors.length) throw new Error(errors[0]);
   const { db } = getFirebaseClient();
   const timestamp = serverTimestamp();
   await addDoc(collection(db, "soal"), buildCreateQuestionData(input, userId, timestamp));
 }
 
-export async function updateQuestion(questionId: string, input: QuestionInput) {
-  const errors = validateQuestionInput(input);
+export async function updateQuestion(
+  questionId: string,
+  input: QuestionInput,
+  dynamicCatalogWords?: string[],
+) {
+  const dynamicWords = await resolveDynamicWords(input, dynamicCatalogWords);
+  const errors = validateQuestionInput(input, dynamicWords);
   if (errors.length) throw new Error(errors[0]);
   const { db } = getFirebaseClient();
   await updateDoc(

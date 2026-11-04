@@ -29,7 +29,7 @@ export function LoginPage() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!identifier.trim() || !password) {
-      setError("Username/email dan password wajib diisi.");
+      setError("Username dan password wajib diisi.");
       return;
     }
     setSubmitting(true);
@@ -41,7 +41,7 @@ export function LoginPage() {
     } catch (loginError) {
       const code = typeof loginError === "object" && loginError && "code" in loginError ? String(loginError.code) : "";
       if (code.includes("invalid-credential") || code.includes("wrong-password") || code.includes("user-not-found")) {
-        setError("Username/email atau password salah. Periksa kembali data login Anda.");
+        setError("Username atau password salah. Periksa kembali data login Anda.");
       } else if (code.includes("too-many-requests")) {
         setError("Terlalu banyak percobaan login. Tunggu sebentar lalu coba kembali.");
       } else if (code.includes("network")) {
@@ -85,9 +85,8 @@ export function LoginPage() {
               )}
               <form onSubmit={handleSubmit} className="space-y-5" noValidate>
                 <div className="space-y-2">
-                  <Label htmlFor="identifier">Username atau email</Label>
-                  <Input id="identifier" autoComplete="username" value={identifier} onChange={(event) => setIdentifier(event.target.value)} placeholder="contoh: guru atau guru@email.com" className="h-12" disabled={!configured || submitting} required />
-                  <p className="text-xs leading-5 text-muted-foreground">Username tanpa @ otomatis menggunakan format <span className="font-semibold">username@sieja.com</span>.</p>
+                  <Label htmlFor="identifier">Username</Label>
+                  <Input id="identifier" autoComplete="username" value={identifier} onChange={(event) => setIdentifier(event.target.value)} className="h-12" disabled={!configured || submitting} required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>

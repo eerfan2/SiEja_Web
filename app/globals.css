@@ -210,6 +210,51 @@ select {
   transform: scale(0.98);
 }
 
+/* Animasi mengembang-mengempis (breathing / pulsing) untuk ikon dashboard */
+@keyframes iconBreathe {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08) translateY(-2px);
+  }
+}
+
+@keyframes iconBreatheGlow {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 2px 8px -2px rgba(90, 79, 207, 0.12);
+  }
+  50% {
+    transform: scale(1.08) translateY(-2px);
+    box-shadow: 0 10px 22px -4px rgba(90, 79, 207, 0.32);
+  }
+}
+
+@keyframes floatGentle {
+  0%, 100% {
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    transform: translateY(-4px) scale(1.04);
+  }
+}
+
+.animate-breathe {
+  animation: iconBreathe 3s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-breathe-glow {
+  animation: iconBreatheGlow 3.2s ease-in-out infinite;
+  will-change: transform, box-shadow;
+}
+
+.animate-float-gentle {
+  animation: floatGentle 3.5s ease-in-out infinite;
+  will-change: transform;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

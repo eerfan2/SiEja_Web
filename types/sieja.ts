@@ -21,8 +21,19 @@ export const STAGE_IDS = [
 
 export type GameType = (typeof GAME_TYPES)[number];
 export type StandardGameType = Exclude<GameType, "urutkanHuruf">;
-export type StageId = (typeof STAGE_IDS)[number];
+export type StageId = (typeof STAGE_IDS)[number] | (string & {});
 export type StageStatus = "locked" | "unlocked" | "completed";
+
+export interface StageItem {
+  id: StageId;
+  number: number;
+  range: string;
+  nama?: string;
+  lokasi?: string;
+  isOpenByTeacher: boolean;
+  createdAt?: unknown;
+  createdBy?: string;
+}
 
 export const ALPHABET = [
   "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
@@ -59,6 +70,14 @@ export interface Student {
 export interface NewStudentInput {
   namaLengkap: string;
   username: string;
+  usia: number;
+  jenisKelamin: string;
+}
+
+export interface UpdateStudentInput {
+  namaLengkap: string;
+  username: string;
+  pin: string;
   usia: number;
   jenisKelamin: string;
 }
@@ -144,6 +163,34 @@ export interface MaterialItem {
   imagePath: string;
   letterAudioPath: string;
   wordAudioPath: string;
+}
+
+export interface MaterialCatalogItem {
+  id: string;
+  word: string;
+  normalizedWord: string;
+  initialLetter: string;
+  letterAudioId: string;
+  imagePath: string;
+  wordAudioPath: string;
+  isActive: boolean;
+  createdAt?: any;
+  updatedAt?: any;
+  createdBy?: string;
+  imageUrl?: string;
+  wordAudioUrl?: string;
+}
+
+export interface CreateCatalogInput {
+  word: string;
+  letterAudioId: string;
+  isActive?: boolean;
+}
+
+export interface UpdateCatalogInput {
+  word?: string;
+  letterAudioId?: string;
+  isActive?: boolean;
 }
 
 export interface AsyncState<T> {

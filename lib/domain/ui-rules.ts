@@ -45,25 +45,96 @@ export function getStudentAvatarKind(jenisKelamin: string): StudentAvatarKind {
   return "neutral";
 }
 
-export function getStudentRemedialCount(student: Student): number {
-  return STAGE_IDS.filter((stageId) => isRemedial(student.progress[stageId])).length;
+/**
+ * Menghitung usia paling banyak (modus / dominan) di antara para siswa.
+ * Jika terdapat lebih dari satu usia dengan jumlah yang sama tinggi,
+ * semua usia tersebut akan digabungkan (contoh: 5 dan 6 tahun -> "5-6 tahun").
+ */
+export function getDominantAgeInfo(students: Array<{ usia?: number }>): {
+  dominantAgeLabel: string;
+  dominantAges: number[];
+} {
+  const freq = new Map<number, number>();
+  for (const s of students) {
+    if (typeof s.usia === "number" && !isNaN(s.usia) && s.usia > 0) {
+      freq.set(s.usia, (freq.get(s.usia) ?? 0) + 1);
+    }
+  }
+
+  if (freq.size === 0) {
+    return { dominantAgeLabel: "-", dominantAges: [] };
+  }
+
+  let maxCount = 0;
+  for (const count of freq.values()) {
+    if (count > maxCount) maxCount = count;
+  }
+
+  const tiedAges: number[] = [];
+  for (const [age, count] of freq.entries()) {
+    if (count === maxCount) {
+      tiedAges.push(age);
+    }
+  }
+
+  tiedAges.sort((a, b) => a - b);
+
+  return {
+    dominantAgeLabel: `${tiedAges.join("-")} tahun`,
+    dominantAges: tiedAges,
+  };
+}
+
+export function getStudentRemedialCount(
+  student: Student,
+  stageIds?: readonly StageId[],
+): number {
+  const ids =
+    stageIds && stageIds.length > 0
+      ? stageIds
+      : Array.from(
+          new Set([
+            ...STAGE_IDS,
+            ...Object.keys(student?.progress || {}).filter((k) =>
+              /^stage[1-9][0-9]*$/.test(k),
+            ),
+          ]),
+        );
+  return ids.filter((stageId) => isRemedial(student.progress[stageId])).length;
 }
 
 export function studentMatchesProgressFilter(
   student: Student,
   filter: ProgressFilter,
+  stageIds?: readonly StageId[],
 ): boolean {
   if (filter === "all") return true;
-  if (filter === "remedial") return getStudentRemedialCount(student) > 0;
+  if (filter === "remedial") return getStudentRemedialCount(student, stageIds) > 0;
 
-  const statuses = STAGE_IDS.map(
+  const ids =
+    stageIds && stageIds.length > 0
+      ? stageIds
+      : Array.from(
+          new Set([
+            ...STAGE_IDS,
+            ...Object.keys(student?.progress || {}).filter((k) =>
+              /^stage[1-9][0-9]*$/.test(k),
+            ),
+          ]),
+        ).sort((a, b) => {
+          const numA = Number(a.replace("stage", "")) || 0;
+          const numB = Number(b.replace("stage", "")) || 0;
+          return numA - numB;
+        });
+
+  const statuses = ids.map(
     (stageId) => student.progress[stageId]?.status ?? defaultStageStatus(stageId),
   );
   if (filter === "completed") return statuses.some((status) => status === "completed");
 
   let highestOpenStatus: "locked" | "unlocked" | "completed" = "locked";
-  for (let i = STAGE_IDS.length - 1; i >= 0; i--) {
-    const stageId = STAGE_IDS[i];
+  for (let i = ids.length - 1; i >= 0; i--) {
+    const stageId = ids[i];
     const status = student.progress[stageId]?.status ?? defaultStageStatus(stageId);
     if (status !== "locked") {
       highestOpenStatus = status;
@@ -71,6 +142,44 @@ export function studentMatchesProgressFilter(
     }
   }
   return highestOpenStatus === "unlocked";
+}
+
+/**
+ * Mengumpulkan seluruh ID stage yang tersedia secara dinamis:
+ * 1. Default stage 1–6 (selalu ada)
+ * 2. Stage dari koleksi 'stages' (misal: stage7, stage8, stage9)
+ * 3. Stage yang tercatat di progress siswa
+ * Diurutkan berdasarkan nomor stage secara menaik.
+ */
+export function getAvailableStageIds(
+  stages: { id: StageId }[] = [],
+  students: Student[] = [],
+): StageId[] {
+  const set = new Set<string>();
+
+  for (let i = 1; i <= 6; i++) {
+    set.add(`stage${i}`);
+  }
+
+  for (const s of stages) {
+    if (s.id) set.add(s.id);
+  }
+
+  for (const student of students) {
+    if (student.progress) {
+      for (const key of Object.keys(student.progress)) {
+        if (/^stage[1-9][0-9]*$/.test(key)) {
+          set.add(key);
+        }
+      }
+    }
+  }
+
+  return Array.from(set).sort((a, b) => {
+    const numA = Number(a.replace("stage", "")) || 0;
+    const numB = Number(b.replace("stage", "")) || 0;
+    return numA - numB;
+  }) as StageId[];
 }
 
 // ---------------------------------------------------------------------------
@@ -91,7 +200,9 @@ export function countActiveQuestionsPerStage(
     STAGE_IDS.map((id) => [id, 0]),
   ) as Record<StageId, number>;
   for (const q of questions) {
-    if (q.isActive) result[q.stageId] += 1;
+    if (q.isActive) {
+      result[q.stageId] = (result[q.stageId] ?? 0) + 1;
+    }
   }
   return result;
 }
